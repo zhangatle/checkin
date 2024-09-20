@@ -3,7 +3,7 @@ name: 小米自动刷步数
 on:
     workflow_dispatch:
     schedule:
-        - cron: "0 10 * * *"
+        - cron: "38 9,11 * * *"
     # 如要修改时间请务必在早上之后再执行 否则可能修改失败 因为不可能有人刚起来就几万步吧
     watch:
         types: [started]
