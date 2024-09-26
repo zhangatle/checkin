@@ -333,7 +333,7 @@ def main(_user, _passwd, _step):
 
 # 获取时间戳
 def get_time():
-    url = 'http://acs.m.taobao.com/gw/mtop.common.getTimestamp'
+    url = 'http://acs.m.taobao.com/gw/mtop.common.getTimestamp/'
     response = requests.get(url, headers=headers).json()
     t = response['data']['t']
     return t
