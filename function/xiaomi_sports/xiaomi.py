@@ -243,10 +243,9 @@ def get_time():
 
 
 if __name__ == "__main__":
-    print(os.environ)
-    if os.environ.get('XIAOMI_Token') and os.environ.get('XIAOMI_UserID'):
-        token = os.environ['XIAOMI_Token']
-        userid = os.environ['XIAOMI_UserID']
+    if os.environ.get('Xiaomi_Token') and os.environ.get('Xiaomi_UserID'):
+        token = os.environ['Xiaomi_Token']
+        userid = os.environ['Xiaomi_UserID']
     else:
         print("未填写小米运动账号或密码取消运行")
         exit(0)
