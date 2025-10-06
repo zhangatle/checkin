@@ -1,13 +1,15 @@
-# -*- coding: utf8 -*-
-# python >=3.8
-
+import json
+import os
 import random
-import re
 import sys
+import time
+from datetime import datetime
 from urllib.parse import quote
 
+import pytz
+import requests
+
 sys.path.append("My-Actions/function/wps")
-from sendNotify import *
 
 #设置中国时区+8
 if os.environ.get('OS_TZ'):
@@ -17,113 +19,15 @@ else:
     os.environ['TZ'] = 'UTC-8CN'
     time.tzset()
 
-sendNotify = sendNotify()
 now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 headers = {
     'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 9; MI 6 MIUI/20.6.18)'
 }
 
 
-# 获取登录code
-def get_code(location):
-    code_pattern = re.compile("(?<=access=).*?(?=&)")
-    code = code_pattern.findall(location)[0]
-    return code
-
-
-# 登录
-
-
-def login(_user, password, type):
-    if type:
-        url1 = "https://api-user.huami.com/registrations/+86" + _user + "/tokens"
-    else:
-        url1 = "https://api-user.huami.com/registrations/" + _user + "/tokens"
-
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2"
-    }
-    data1 = {
-        "client_id": "HuaMi",
-        "password": f"{password}",
-        "redirect_uri": "https://s3-us-west-2.amazonaws.com/hm-registration/successsignin.html",
-        "token": "access"
-    }
-    r1 = requests.post(url1, data=data1, headers=headers, allow_redirects=False)
-    try:
-        location = r1.headers["Location"]
-        code = get_code(location)
-    except:
-        return 0, 0
-    # print(f'access_code获取成功！ {code}')
-
-    url2 = "https://account.huami.com/v2/client/login"
-    if type:
-        data2 = {
-        "allow_registration=": "false",
-        "app_name": "com.xiaomi.hm.health",
-        "app_version": "6.3.5",
-        "code": f"{code}",
-        "country_code": "CN",
-        "device_id": "2C8B4939-0CCD-4E94-8CBA-CB8EA6E613A1",
-        "device_model": "phone",
-        "grant_type": "access_token",
-        "third_name": "huami_phone",
-        }
-    else:
-        data2 = {
-        "allow_registration=": "false",
-        "app_name": "com.xiaomi.hm.health",
-        "app_version": "6.3.5",
-        "code": f"{code}",
-        "country_code": "CN",
-        "device_id": "2C8B4939-0CCD-4E94-8CBA-CB8EA6E613A1",
-        "device_model": "phone",
-        "dn": "api-user.huami.com%2Capi-mifit.huami.com%2Capp-analytics.huami.com",
-        "grant_type": "access_token",
-        "lang": "zh_CN",
-        "os_version": "1.5.0",
-        "source": "com.xiaomi.hm.health",
-        "third_name": "email",
-        }
-
-    r2 = requests.post(url2, data=data2, headers=headers).json()
-    login_token = r2["token_info"]["login_token"]
-    # print("login_token获取成功！")
-    # print(login_token)
-    userid = r2["token_info"]["user_id"]
-    # print("userid获取成功！")
-    # print(userid)
-
-    return login_token, userid
-
-
 # 主函数
-def main(_user, _passwd, _step):
-    if '@' in _user:
-        _type = False
-    else:
-        _type = True
-    _user = str(_user)
-    _passwd = str(_passwd)
-    _step = str(_step)
-
-    if _step == '':
-        print("已设置为随机步数（10000-19999）")
-        _step = str(random.randint(10000, 19999))
-
-    login_token, userid = login(_user, _passwd, _type)
-
-    if login_token == 0:
-        print("登陆失败！")
-        if os.environ.get('SEND_KEY'):
-            sendNotify.send(title="小米运动自动刷步数", msg="【小米运动自动刷步数】\n登陆失败！")
-        return "login fail!"
-
+def main(_token, _userid, _step):
     t = get_time()
-
-    app_token = get_app_token(login_token)
 
     today = time.strftime("%F")
 
@@ -318,64 +222,33 @@ def main(_user, _passwd, _step):
 
     url = f'https://api-mifit-cn.huami.com/v1/data/band_data.json?&t={t}'
     head = {
-        "apptoken": app_token,
+        "apptoken": _token,
         "Content-Type": "application/x-www-form-urlencoded"
     }
 
-    data = f'userid={userid}&last_sync_data_time=1597306380&device_type=0&last_deviceid=DA932FFFFE8816E7&data_json={quote(json.dumps(data_json))} '
+    data = f'userid={_userid}&last_sync_data_time=1597306380&device_type=0&last_deviceid=DA932FFFFE8816E7&data_json={quote(json.dumps(data_json))} '
 
     response = requests.post(url, data=data, headers=head).json()
-    # print(response)
-    result = f"{user[:4]}****{user[-4:]}: [{now}] 修改步数（{step}）" + response['message']
-    print(result)
-    return result
+    print(response)
 
+def get_beijing_time():
+    target_timezone = pytz.timezone('Asia/Shanghai')
+    # 获取当前时间
+    return datetime.now().astimezone(target_timezone)
 
 # 获取时间戳
 def get_time():
-    url = 'http://acs.m.taobao.com/gw/mtop.common.getTimestamp/'
-    response = requests.get(url, headers=headers).json()
-    t = response['data']['t']
-    return t
-
-
-# 获取app_token
-def get_app_token(login_token):
-    url = f"https://account-cn.huami.com/v1/client/app_tokens?app_name=com.xiaomi.hm.health&dn=api-user.huami.com%2Capi-mifit.huami.com%2Capp-analytics.huami.com&login_token={login_token}"
-    response = requests.get(url, headers=headers).json()
-    app_token = response['token_info']['app_token']
-    # print(f'app_token获取成功 {app_token}')
-    return app_token
+    current_time = get_beijing_time()
+    return "%.0f" % (current_time.timestamp() * 1000)
 
 
 if __name__ == "__main__":
-    # 用户名（格式为 13800138000）
-    if os.environ.get('Xiaomi_User') and os.environ.get('Xiaomi_Pw'):
-        # 用户名（格式为 13800138000）
-        user = os.environ['Xiaomi_User']
-        # 登录密码
-        passwd = os.environ['Xiaomi_Pw']
+    if os.environ.get('Xiaomi_Token') and os.environ.get('Xiaomi_UserID'):
+        token = os.environ['Xiaomi_Token']
+        userid = os.environ['Xiaomi_UserID']
     else:
         print("未填写小米运动账号或密码取消运行")
         exit(0)
 
-    # 要修改的步数，直接输入想要修改的步数值，留空为随机步数
-    if os.environ.get('Xiaomi_Bs'):
-        step = os.environ['Xiaomi_Bs'].replace('[', '').replace(']', '')
-
-    user_list = user.split('#')
-    passwd_list = passwd.split('#')
-    step_array = step.split('-')
-
-    if len(user_list) == len(passwd_list):
-        push = ''
-        for line in range(0, len(user_list)):
-            if len(step_array) == 2:
-                step = str(random.randint(int(step_array[0]), int(step_array[1])))
-            elif str(step) == '0':
-                step = ''
-            push += main(user_list[line], passwd_list[line], step) + '\n'
-        if not os.environ.get('SEND_KEY'):
-            sendNotify.send(title="小米运动自动刷步数", msg="【小米运动自动刷步数】\n" + push)
-    else:
-        print('用户名和密码数量不对')
+    step = str(random.randint(int(16000), int(25000)))
+    main(token, userid, step)
