@@ -243,6 +243,7 @@ def get_time():
 
 
 if __name__ == "__main__":
+    print(os.environ)
     if os.environ.get('XIAOMI_TOKEN') and os.environ.get('XIAOMI_USERID'):
         token = os.environ['XIAOMI_TOKEN']
         userid = os.environ['XIAOMI_USERID']
