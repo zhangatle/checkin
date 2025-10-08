@@ -250,5 +250,5 @@ if __name__ == "__main__":
         print("未填写小米运动账号或密码取消运行")
         exit(0)
 
-    step = str(random.randint(int(16000), int(25000)))
+    step = str(random.randint(int(20000), int(29000)))
     main(token, userid, step)
